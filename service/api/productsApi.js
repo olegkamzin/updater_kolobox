@@ -5,7 +5,7 @@ export default async (page) => {
 		params: {
 			limit: 500,
 			page,
-			category: '6302a4114c05da8a1776d743'
+			category: 'tyres'
 		}
 	})
 }

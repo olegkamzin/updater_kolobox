@@ -2,3 +2,8 @@
 /.env
 /package-lock.json
 node_modules
+.idea/.gitignore
+.idea/misc.xml
+.idea/modules.xml
+.idea/updater_kolobox.iml
+.idea/vcs.xml
