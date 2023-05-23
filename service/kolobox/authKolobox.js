@@ -7,5 +7,5 @@ export default async () => {
 	params.append('client_secret', process.env.CLIENT_SECRET)
 	params.append('username', process.env.USERNAME)
 	params.append('password', process.env.PASSWORD)
-	return axios.post(process.env.KOLOBOX_URL + 'oauth/token', params)
+	return (await axios.post(process.env.KOLOBOX_URL + 'oauth/token', params)).data.access_token
 }

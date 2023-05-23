@@ -7,3 +7,4 @@ node_modules
 .idea/modules.xml
 .idea/updater_kolobox.iml
 .idea/vcs.xml
+/.idea/
