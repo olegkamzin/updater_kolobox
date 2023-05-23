@@ -82,7 +82,6 @@ const updateProducts = async () => {
 		await tyresKolobox(page)
 			.then(async res => {
 				if (res.data.length === 0) {
-					console.log('Новый круг')
 					await checkUpdate()
 					return page = 0
 				}
@@ -106,10 +105,9 @@ const start = async () => {
 	try {
 		globalThis.token = await authApi()
 		globalThis.kolobox = await authKolobox()
-	
+		console.log('Обновление запущено')
 		await getProducts()
 		await updateProducts()
-		console.log('Обновление запущено')
 	} catch (e) {
 		console.log(e)
 	}
