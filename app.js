@@ -1,116 +1,141 @@
 import dotenv from 'dotenv'
-import fs from 'fs'
 import authApi from './service/api/authApi.js'
 import authKolobox from './service/kolobox/authKolobox.js'
-import tyresKolobox from './service/kolobox/tyresKolobox.js'
+import productsKolobox from './service/kolobox/productsKolobox.js'
 import productsApi from './service/api/productsApi.js'
 import updateApi from './service/api/updateApi.js'
 dotenv.config()
 
 const timer = ms => new Promise(resolve => setTimeout(resolve, ms))
+let products
+let category = 'tyres'
+const items = []
+const send = []
+const test123 = []
 
-const products = new Map()
-const checked = new Map()
-
-const getProducts = async () => {
-	await productsApi()
-		.then(res => {
-			res.forEach(el => products.set(el.stocks.vendor, el))
-		})
-		.catch(e => console.log(e))
-}
 
 const sendProducts = async (body) => {
-	const send = []
-	const edited = []
-
+	items.length = 0
 	for (const el of body) {
 		const id = el.id.toString()
 		const product = products.get(id)
 
-		if (product) {
+		if (products.has(id)) {
+			console.log('+')
+			product.checked = true
+			test123.push(product)
 			if (Number(el.count_local) !== product.stocks.quantity || Number(el.price) !== product.stocks.price) {
 				const result = {}
-
+	
 				result.id = product.product
 				result.quantity = Number(el.count_local)
 				result.price = Number(el.price)
 				result.vendor = id
 
-				product.stocks.quantity = Number(el.count_local)
-				product.stocks.price = Number(el.price)
-	
-				send.push(result)
+				items.push(result)
 			}
-			checked.set(id)
+		} else {
+			if (el.count_local >= 4) {
+				// выводим товары которых нет в каталоге
+				// console.log(el)
+			}
 		}
 	}
 
-	if (send.length !== 0) {
-		await updateApi(send)
-			.then(res => {
-			})
-			.catch(async err => console.log(err))
-	}
+	// if (items.length !== 0) {
+	// 	await updateApi(items)
+	// 		.then(() => {
+	// 			items.forEach(el => {
+	// 				const prod = products.get(el.vendor)
+	// 				prod.price = el.price
+	// 				prod.quantity = el.quantity
+	// 			})
+	// 		})
+	// 		.catch(async err => console.log(err))
+	// }
 
 }
 
 const checkUpdate = async () => {
-	const send = []
+	// console.log(products)
+	const test333 = []
 
 	products.forEach(el => {
-		if (!checked.has(el.stocks.vendor)) {
-			if (el.stocks.quantity !== 0) {
-				send.push({
-					id: el.product,
-					quantity: 0,
-					price: el.stocks.price,
-					vendor: el.stocks.vendor
-				})
-				el.stocks.quantity = 0
-			}
+		if (!el.checked) {
+			send.push({
+				id: el.product,
+				quantity: 0,
+				price: el.stocks.price,
+				vendor: el.stocks.vendor
+			})
+			el.stocks.quantity = 0
+		} else {
+			test333.push({
+				id: el.product,
+				quantity: 0,
+				price: el.stocks.price,
+				vendor: el.stocks.vendor
+			})
 		}
+		el.checked = false
 	})
 
-	if (send.length !== 0) await updateApi(send).catch(err => console.log(err))
+	console.log(send)
+	console.log(test333)
+	// send.length = 0
+
+	// if (send.length !== 0) await updateApi(send).catch(err => console.log(err))
+
+	function findIntersection(array1, array2) {
+		const intersection = [];
+		for (let i = 0; i < array1.length; i++) {
+		  if (array2.includes(array1[i])) {
+			intersection.push(array1[i]);
+		  }
+		}
+		return intersection;
+	}
+	console.log(findIntersection(send, test123))
 }
 
 const updateProducts = async () => {
 	let page = 0
 
-	while (true) {
-		await tyresKolobox(page)
+	const fetchProducts = async () => {
+		await productsKolobox(page, category)
 			.then(async res => {
-				if (res.data.length === 0) {
-					await checkUpdate()
+				if (res.data.length !== 0) {
+					await sendProducts(res.data)
+					page++
+				} else {
+					if (category === 'rims') await checkUpdate()
+					category = category === 'tyres' ? 'rims' : 'tyres'
+					console.log(category)
 					return page = 0
 				}
-				await sendProducts(res.data)
-				page++
 			})
-			.catch(async err => {
-				if (err.response?.status === 429) return null
-				if (err.response?.status === 401) {
-					globalThis.kolobox = await authKolobox().catch(async err => console.log(err))
+			.catch(async e => {
+				if (e.response?.status === 429) return await timer(60000)
+				if (e.response?.status === 401) {
+					return globalThis.kolobox = await authKolobox()
 						.catch(err => console.log(err))
 				}
-				console.log(err)
-				await timer(60000)
+				console.log(e)
 			})
-		await timer(1000)
 	}
+
+	setInterval(fetchProducts, 1000)
 }
 
 const start = async () => {
 	try {
 		globalThis.token = await authApi()
 		globalThis.kolobox = await authKolobox()
-		console.log('Обновление запущено')
-		await getProducts()
+		products = await productsApi()
 		await updateProducts()
 	} catch (e) {
 		console.log(e)
 	}
-}
+  }
 
 start()
