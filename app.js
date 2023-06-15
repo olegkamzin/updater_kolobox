@@ -10,30 +10,24 @@ const timer = ms => new Promise(resolve => setTimeout(resolve, ms))
 let products
 let category = 'tyres'
 const items = []
-const send = []
-const test123 = []
-
 
 const sendProducts = async (body) => {
-	items.length = 0
 	for (const el of body) {
 		const id = el.id.toString()
 		const product = products.get(id)
-
-		if (products.has(id)) {
-			console.log('+')
-			product.checked = true
-			test123.push(product)
+		if (product && !product.checked) {
 			if (Number(el.count_local) !== product.stocks.quantity || Number(el.price) !== product.stocks.price) {
-				const result = {}
-	
-				result.id = product.product
-				result.quantity = Number(el.count_local)
-				result.price = Number(el.price)
-				result.vendor = id
-
-				items.push(result)
+				items.push({
+					id: product.product,
+					quantity: Number(el.count_local),
+					price: Number(el.price),
+					vendor: id
+				})
+				product.stocks.quantity = Number(el.count_local)
+				product.stocks.price = Number(el.price)
 			}
+			product.time = new Date()
+			product.checked = true
 		} else {
 			if (el.count_local >= 4) {
 				// выводим товары которых нет в каталоге
@@ -42,89 +36,71 @@ const sendProducts = async (body) => {
 		}
 	}
 
-	// if (items.length !== 0) {
-	// 	await updateApi(items)
-	// 		.then(() => {
-	// 			items.forEach(el => {
-	// 				const prod = products.get(el.vendor)
-	// 				prod.price = el.price
-	// 				prod.quantity = el.quantity
-	// 			})
-	// 		})
-	// 		.catch(async err => console.log(err))
-	// }
-
+	if (items.length !== 0) {
+		await updateApi(items)
+			.then(() => {
+				items.forEach(el => {
+					const prod = products.get(el.vendor)
+					prod.price = el.price
+					prod.quantity = el.quantity
+				})
+			})
+			.catch(async err => console.log(err))
+		
+		items.length = 0
+	}
 }
 
 const checkUpdate = async () => {
-	// console.log(products)
-	const test333 = []
+	const send = []
+	const currentTime = new Date()
 
-	products.forEach(el => {
-		if (!el.checked) {
+	for (const [key, value] of products) {
+		if (!value.checked && value.stocks.quantity !== 0 && (currentTime - value.time) / (1000 * 60) > 10) {
 			send.push({
-				id: el.product,
+				id: value.product,
 				quantity: 0,
-				price: el.stocks.price,
-				vendor: el.stocks.vendor
+				price: value.stocks.price,
+				vendor: key
 			})
-			el.stocks.quantity = 0
-		} else {
-			test333.push({
-				id: el.product,
-				quantity: 0,
-				price: el.stocks.price,
-				vendor: el.stocks.vendor
-			})
+			value.stocks.quantity = 0
 		}
-		el.checked = false
-	})
-
-	console.log(send)
-	console.log(test333)
-	// send.length = 0
-
-	// if (send.length !== 0) await updateApi(send).catch(err => console.log(err))
-
-	function findIntersection(array1, array2) {
-		const intersection = [];
-		for (let i = 0; i < array1.length; i++) {
-		  if (array2.includes(array1[i])) {
-			intersection.push(array1[i]);
-		  }
-		}
-		return intersection;
+		value.checked = false
 	}
-	console.log(findIntersection(send, test123))
+
+	// console.log(send)
+
+	if (send.length !== 0) await updateApi(send)
+		.catch(err => console.log(err))
 }
 
 const updateProducts = async () => {
 	let page = 0
 
-	const fetchProducts = async () => {
-		await productsKolobox(page, category)
-			.then(async res => {
-				if (res.data.length !== 0) {
-					await sendProducts(res.data)
-					page++
-				} else {
-					if (category === 'rims') await checkUpdate()
-					category = category === 'tyres' ? 'rims' : 'tyres'
-					console.log(category)
-					return page = 0
+	while (true) {
+		try {
+			const res = await productsKolobox(page, category)
+			if (res.length !== 0) {
+				await sendProducts(res)
+				page++
+			} else {
+				if (category === 'rims') {
+					await checkUpdate()
 				}
-			})
-			.catch(async e => {
-				if (e.response?.status === 429) return await timer(60000)
-				if (e.response?.status === 401) {
-					return globalThis.kolobox = await authKolobox()
-						.catch(err => console.log(err))
-				}
-				console.log(e)
-			})
+				category = category === 'tyres' ? 'rims' : 'tyres'
+				page = 0
+			}
+			await timer(800)
+		} catch (error) {
+			if (error?.response?.status === 401) {
+				globalThis.kolobox = await authKolobox()
+				await timer(1000)
+			} else {
+				console.log(error)
+				await timer(60000)
+			}
+		}
 	}
-
-	setInterval(fetchProducts, 1000)
 }
 
 const start = async () => {
