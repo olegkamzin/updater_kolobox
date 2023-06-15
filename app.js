@@ -108,6 +108,7 @@ const start = async () => {
 		globalThis.token = await authApi()
 		globalThis.kolobox = await authKolobox()
 		products = await productsApi()
+		console.log('Обновление запущено | ' + new Date())
 		await updateProducts()
 	} catch (e) {
 		console.log(e)
