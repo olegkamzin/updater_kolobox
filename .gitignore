@@ -1,4 +1,4 @@
-/.DS_Store
+.DS_Store
 /.env
 /package-lock.json
 node_modules
@@ -8,3 +8,4 @@ node_modules
 .idea/updater_kolobox.iml
 .idea/vcs.xml
 /.idea/
+service/.DS_Store
