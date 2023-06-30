@@ -8,4 +8,4 @@ node_modules
 .idea/updater_kolobox.iml
 .idea/vcs.xml
 /.idea/
-service/.DS_Store
+/service/.DS_Store
